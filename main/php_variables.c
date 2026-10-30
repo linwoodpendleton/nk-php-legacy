@@ -53,6 +53,18 @@ PHPAPI void php_register_variable_safe(char *var, char *strval, size_t str_len, 
 	php_register_variable_ex(var, &new_entry, track_vars_array);
 }
 
+/* NK backport of upstream 712e60f9ed (array_init_singleton): arrays created
+ * from request input start with a single bucket instead of HT_MIN_SIZE (8),
+ * so nested / many request variables cannot amplify memory use 8x. 7.1 has no
+ * zend_new_array_singleton(); the table size is set before the hash is
+ * initialised (first insert), which zend_hash_real_init_ex() handles for any
+ * power-of-two size. */
+static zend_always_inline void php_array_init_singleton(zval *arg)
+{
+	array_init(arg);
+	Z_ARRVAL_P(arg)->nTableSize = 1;
+}
+
 PHPAPI void php_register_variable_ex(char *var_name, zval *val, zval *track_vars_array)
 {
 	char *p = NULL;
@@ -192,7 +204,7 @@ PHPAPI void php_register_variable_ex(char *var_name, zval *val, zval *track_vars
 			}
 
 			if (!index) {
-				array_init(&gpc_element);
+				php_array_init_singleton(&gpc_element);
 				if ((gpc_element_p = zend_hash_next_index_insert(symtable1, &gpc_element)) == NULL) {
 					zval_ptr_dtor(&gpc_element);
 					zval_dtor(val);
@@ -203,7 +215,7 @@ PHPAPI void php_register_variable_ex(char *var_name, zval *val, zval *track_vars
 				gpc_element_p = zend_symtable_str_find(symtable1, index, index_len);
 				if (!gpc_element_p) {
 					zval tmp;
-					array_init(&tmp);
+					php_array_init_singleton(&tmp);
 					gpc_element_p = zend_symtable_str_update_ind(symtable1, index, index_len, &tmp);
 				} else {
 					if (Z_TYPE_P(gpc_element_p) == IS_INDIRECT) {
@@ -211,7 +223,7 @@ PHPAPI void php_register_variable_ex(char *var_name, zval *val, zval *track_vars
 					}
 					if (Z_TYPE_P(gpc_element_p) != IS_ARRAY) {
 						zval_ptr_dtor(gpc_element_p);
-						array_init(gpc_element_p);
+						php_array_init_singleton(gpc_element_p);
 					}
 				}
 			}
@@ -398,7 +410,7 @@ SAPI_API SAPI_TREAT_DATA_FUNC(php_default_treat_data)
 		case PARSE_POST:
 		case PARSE_GET:
 		case PARSE_COOKIE:
-			array_init(&array);
+			php_array_init_singleton(&array);
 			switch (arg) {
 				case PARSE_POST:
 					zval_ptr_dtor(&PG(http_globals)[TRACK_VARS_POST]);
