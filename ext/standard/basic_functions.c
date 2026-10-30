@@ -3711,6 +3711,27 @@ PHP_MSHUTDOWN_FUNCTION(basic) /* {{{ */
 }
 /* }}} */
 
+/* {{{ php_basic_early_rinit
+ * CVE-2026-109619 (NK; semantics of the mainline php_basic_early_rinit(), not
+ * part of the official PHP-7.4 backport): called from php_request_startup()
+ * right after zend_activate(), before request data is processed and before any
+ * module RINIT. BG(serialize), BG(unserialize) and the URL rewriter state are
+ * otherwise only reset in basic's RINIT, but session's RINIT runs earlier
+ * (standard_deps lists session as optional dependency) and decodes the session
+ * when session.auto_start is on (PHP_INI_PERDIR: .htaccess, FastCGI PHP_VALUE,
+ * pool php_value). After a fatal error inside (un)serialize() in the previous
+ * request of the same worker, BG(unserialize).level/var_hash still refer to
+ * that request's freed heap and would be reused by the session decoder. */
+PHPAPI void php_basic_early_rinit(TSRMLS_D)
+{
+	BG(serialize_lock) = 0;
+	memset(&BG(serialize), 0, sizeof(BG(serialize)));
+	memset(&BG(unserialize), 0, sizeof(BG(unserialize)));
+	/* same as php_url_scanner_ex_activate(): everything before 'tags' */
+	memset(&BG(url_adapt_state_ex), 0, XtOffsetOf(url_adapt_state_ex_t, tags));
+}
+/* }}} */
+
 PHP_RINIT_FUNCTION(basic) /* {{{ */
 {
 	memset(BG(strtok_table), 0, 256);

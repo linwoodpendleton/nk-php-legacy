@@ -1597,6 +1597,8 @@ static int php_start_sapi(TSRMLS_D)
 			PG(connection_status) = PHP_CONNECTION_NORMAL;
 
 			zend_activate(TSRMLS_C);
+			/* CVE-2026-109619: see php_request_startup() */
+			php_basic_early_rinit(TSRMLS_C);
 			zend_set_timeout(EG(timeout_seconds), 1);
 			zend_activate_modules(TSRMLS_C);
 			PG(modules_activated)=1;
@@ -1646,6 +1648,8 @@ int php_request_startup(TSRMLS_D)
 		PG(in_user_include) = 0;
 
 		zend_activate(TSRMLS_C);
+		/* CVE-2026-109619: reset BG() state that is used before basic's RINIT */
+		php_basic_early_rinit(TSRMLS_C);
 		sapi_activate(TSRMLS_C);
 
 #ifdef ZEND_SIGNALS
