@@ -1271,6 +1271,9 @@ int php_request_startup(TSRMLS_D)
 	zend_try {
 		PG(in_error_log) = 0;
 		PG(during_request_startup) = 1;
+		/* never start a request in EH_THROW mode left over from a previous one */
+		PG(error_handling) = EH_NORMAL;
+		PG(exception_class) = NULL;
 
 		php_output_activate(TSRMLS_C);
 
@@ -1411,6 +1414,8 @@ void php_request_shutdown_for_hook(void *dummy)
 		for (i = 0; i < NUM_TRACK_VARS; i++) {
 			if (PG(http_globals)[i]) {
 				zval_ptr_dtor(&PG(http_globals)[i]);
+				/* May be accessed before php_request_startup() */
+				PG(http_globals)[i] = NULL;
 			}
 		}
 	} zend_end_try();
@@ -1486,6 +1491,8 @@ void php_request_shutdown(void *dummy)
 		for (i=0; i<NUM_TRACK_VARS; i++) {
 			if (PG(http_globals)[i]) {
 				zval_ptr_dtor(&PG(http_globals)[i]);
+				/* May be accessed before php_request_startup() */
+				PG(http_globals)[i] = NULL;
 			}
 		}
 	} zend_end_try();
@@ -1502,6 +1509,16 @@ void php_request_shutdown(void *dummy)
 
 	/* 7. Shutdown scanner/executor/compiler and restore ini entries */
 	zend_deactivate(TSRMLS_C);
+
+	/* May be used before php_request_startup() (e.g. by php_error_cb() for a
+	 * diagnostic raised while applying per-directory INI settings): reset
+	 * error handling state that a bailout may have left behind. In 5.2 the
+	 * EH_THROW mode lives in PG() and is otherwise only reset at module
+	 * startup. Do not use php_set_error_handling(): it also clears
+	 * last_error (error_get_last() semantics). */
+	PG(error_handling) = EH_NORMAL;
+	PG(exception_class) = NULL;
+	EG(exception) = NULL;
 
 	/* 8. Call all extensions post-RSHUTDOWN functions */
 	zend_try {
@@ -1534,6 +1551,10 @@ void php_request_shutdown(void *dummy)
 		PG(com_initialized) = 0;
 	}
 #endif
+
+	/* May be accessed before php_request_startup() */
+	PG(modules_activated) = 0;
+	SG(request_info).headers_only = 0;
 }
 /* }}} */
 

@@ -40,6 +40,11 @@ ZEND_API void zend_objects_store_destroy(zend_objects_store *objects)
 {
 	efree(objects->object_buckets);
 	objects->object_buckets = NULL;
+	/* May be used before the next init_executor() (e.g. an exception object
+	 * created by an error raised before request startup): do not keep stale
+	 * handles that would index into the NULL bucket array. */
+	objects->top = 1;
+	objects->free_list_head = -1;
 }
 
 ZEND_API void zend_objects_store_call_destructors(zend_objects_store *objects TSRMLS_DC)

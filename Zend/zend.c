@@ -851,6 +851,10 @@ void zend_deactivate(TSRMLS_D)
 	/* we're no longer executing anything */
 	EG(opline_ptr) = NULL;
 	EG(active_symbol_table) = NULL;
+	/* a bailout from a shutdown function / destructor can leave this pointing
+	 * at an op_array that shutdown_executor() frees; it is read by
+	 * zend_get_executed_filename() before the next init_executor() */
+	EG(active_op_array) = NULL;
 
 	zend_try {
 		shutdown_scanner(TSRMLS_C);
