@@ -408,6 +408,21 @@ void shutdown_executor(void) /* {{{ */
 		efree(EG(ht_iterators));
 	}
 
+	/* NK backport of CVE-2026-109619 (after upstream 712e60f9ed): these globals
+	 * may be read by zend_error() / php_error_cb() and by INI handlers of the
+	 * next request before init_executor() runs (e.g. mod_php .htaccess
+	 * php_value). Reset them unconditionally, also when one of the zend_try
+	 * blocks above was left by a bailout; the memory they pointed to is
+	 * released with the request heap. */
+	ZVAL_UNDEF(&EG(user_error_handler));
+	ZVAL_UNDEF(&EG(user_exception_handler));
+	EG(error_handling) = EH_NORMAL;
+	EG(exception_class) = NULL;
+	EG(exception) = NULL;
+	EG(objects_store).object_buckets = NULL;
+	EG(objects_store).top = 1;
+	EG(objects_store).free_list_head = -1;
+
 	EG(active) = 0;
 }
 /* }}} */

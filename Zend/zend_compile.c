@@ -327,6 +327,12 @@ void init_compiler(void) /* {{{ */
 
 void shutdown_compiler(void) /* {{{ */
 {
+	/* NK hardening (CVE-2026-109619 class): CG(compiled_filename) points into
+	 * CG(filenames_table), which is destroyed below; do not leave it dangling
+	 * until the next request's init_compiler() (upstream 8.0+ does the same via
+	 * zend_restore_compiled_filename(NULL)). */
+	CG(compiled_filename) = NULL;
+	CG(in_compilation) = 0;
 	zend_stack_destroy(&CG(loop_var_stack));
 	zend_stack_destroy(&CG(delayed_oplines_stack));
 	zend_hash_destroy(&CG(filenames_table));
