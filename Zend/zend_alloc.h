@@ -27,6 +27,12 @@
 #include "../TSRM/TSRM.h"
 #include "zend.h"
 
+#ifdef ZEND_WIN32
+# include <process.h>
+#elif defined(HAVE_UNISTD_H)
+# include <unistd.h>
+#endif
+
 #ifndef ZEND_MM_ALIGNMENT
 # define ZEND_MM_ALIGNMENT 8
 # define ZEND_MM_ALIGNMENT_LOG2 3
@@ -67,6 +73,14 @@ ZEND_API char *_estrdup(const char *s ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC) 
 ZEND_API char *_estrndup(const char *s, unsigned int length ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC) ZEND_ATTRIBUTE_MALLOC;
 ZEND_API size_t _zend_mem_block_size(void *ptr TSRMLS_DC ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC);
 
+/* CVE-2026-109618: report an allocation failure on stderr and terminate the
+ * process. Never longjmp()s and never allocates. */
+#if defined(__GNUC__) && __GNUC__ >= 3 && !defined(__INTEL_COMPILER) && !defined(DARWIN) && !defined(__hpux) && !defined(_AIX) && !defined(__osf__)
+ZEND_API void zend_mm_safe_error_ex(const char *format, ...) __attribute__ ((noreturn));
+#else
+ZEND_API void zend_mm_safe_error_ex(const char *format, ...);
+#endif
+
 /* Standard wrapper macros */
 #define emalloc(size)						_emalloc((size) ZEND_FILE_LINE_CC ZEND_FILE_LINE_EMPTY_CC)
 #define safe_emalloc(nmemb, size, offset)	_safe_emalloc((nmemb), (size), (offset) ZEND_FILE_LINE_CC ZEND_FILE_LINE_EMPTY_CC)
@@ -99,7 +113,7 @@ inline static void * __zend_malloc(size_t len)
 		return tmp;
 	}
 	fprintf(stderr, "Out of memory\n");
-	exit(1);
+	_exit(1);
 }
 
 inline static void * __zend_calloc(size_t nmemb, size_t len)
@@ -116,7 +130,7 @@ inline static void * __zend_realloc(void *p, size_t len)
 		return p;
 	}
 	fprintf(stderr, "Out of memory\n");
-	exit(1);
+	_exit(1);
 }
 
 
