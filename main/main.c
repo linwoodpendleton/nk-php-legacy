@@ -112,6 +112,15 @@
 
 PHPAPI int (*php_register_internal_extensions_func)(void) = php_register_internal_extensions;
 
+/* NodeKeeper patch marker (nk-php-legacy, branch nk/PHP-7.3). PHP_VERSION is
+ * intentionally unchanged; this string only identifies the NK security patch
+ * level in built binaries (e.g. `strings php | grep NK-PHP-PATCHLEVEL`). */
+#if defined(__GNUC__)
+__attribute__((used))
+#endif
+static const char nk_php_patchlevel[] =
+	"NK-PHP-PATCHLEVEL php-7.3.33-nk1 CVE-2026-109618 CVE-2026-109619";
+
 #ifndef ZTS
 php_core_globals core_globals;
 #else
