@@ -117,6 +117,9 @@ ZEND_API void zend_llist_destroy(zend_llist *l)
 		current = next;
 	}
 
+	/* NK (CVE-2026-109619): do not leave dangling head/tail */
+	l->head  = NULL;
+	l->tail  = NULL;
 	l->count = 0;
 }
 

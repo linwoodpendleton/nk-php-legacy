@@ -332,6 +332,29 @@ void shutdown_executor(TSRMLS_D) /* {{{ */
 		}
 	} zend_end_try();
 
+	/* NK (CVE-2026-109619): the following may be used by zend_error() /
+	 * php_error_cb() before the next init_executor() (e.g. mod_php applies
+	 * php_value / .htaccess settings before php_request_startup()). They are
+	 * reset here unconditionally, outside of the zend_try blocks above, so
+	 * that a bailout in any of those blocks cannot leave them pointing into
+	 * the request heap that is about to be released. */
+	EG(user_error_handler) = NULL;
+	EG(user_exception_handler) = NULL;
+	memset(&EG(user_error_handlers_error_reporting), 0, sizeof(EG(user_error_handlers_error_reporting)));
+	memset(&EG(user_error_handlers), 0, sizeof(EG(user_error_handlers)));
+	memset(&EG(user_exception_handlers), 0, sizeof(EG(user_exception_handlers)));
+	EG(error_handling) = EH_NORMAL;
+	/* 5.4: init_executor() does not reset exception_class (NK addition) */
+	EG(exception_class) = NULL;
+	EG(exception) = NULL;
+	EG(prev_exception) = NULL;
+	/* The object store is invalid until init_executor(); with free_list_head
+	 * = -1 (NK addition, cross-check X5) an object created before then hits a
+	 * fixed small offset from NULL instead of a stale index. */
+	EG(objects_store).object_buckets = NULL;
+	EG(objects_store).top = 1;
+	EG(objects_store).free_list_head = -1;
+
 	zend_shutdown_fpu(TSRMLS_C);
 
 	EG(active) = 0;

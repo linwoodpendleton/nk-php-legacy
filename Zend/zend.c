@@ -976,6 +976,11 @@ void zend_deactivate(TSRMLS_D) /* {{{ */
 	zend_try {
 		zend_ini_deactivate(TSRMLS_C);
 	} zend_end_try();
+
+	/* NK (CVE-2026-109619, cross-check X6): a bailout from a shutdown function
+	 * or destructor leaves this pointing at an op_array destroyed above;
+	 * zend_get_executed_filename() reads it before the next init_executor(). */
+	EG(active_op_array) = NULL;
 }
 /* }}} */
 

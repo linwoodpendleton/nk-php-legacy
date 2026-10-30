@@ -1555,6 +1555,8 @@ int php_request_startup(TSRMLS_D)
 		PG(in_user_include) = 0;
 
 		zend_activate(TSRMLS_C);
+		/* NK (CVE-2026-109619): reset BG() state that is used before RINIT */
+		php_basic_early_rinit(TSRMLS_C);
 		sapi_activate(TSRMLS_C);
 
 #ifdef ZEND_SIGNALS
@@ -1790,9 +1792,18 @@ void php_request_shutdown(void *dummy)
 		for (i=0; i<NUM_TRACK_VARS; i++) {
 			if (PG(http_globals)[i]) {
 				zval_ptr_dtor(&PG(http_globals)[i]);
+				/* NK (CVE-2026-109619): may be accessed before php_request_startup() */
+				PG(http_globals)[i] = NULL;
 			}
 		}
 	} zend_end_try();
+	{
+		/* NK (CVE-2026-109619): also when a dtor above bailed out */
+		int i;
+		for (i=0; i<NUM_TRACK_VARS; i++) {
+			PG(http_globals)[i] = NULL;
+		}
+	}
 
 	/* 7.5 free last error information */
 	if (PG(last_error_message)) {
@@ -1843,8 +1854,17 @@ void php_request_shutdown(void *dummy)
 #ifdef HAVE_DTRACE
 	DTRACE_REQUEST_SHUTDOWN(SAFE_FILENAME(SG(request_info).path_translated), SAFE_FILENAME(SG(request_info).request_uri), (char *)SAFE_FILENAME(SG(request_info).request_method));
 #endif /* HAVE_DTRACE */
+
+	/* NK (CVE-2026-109619): may be accessed before php_request_startup() */
+	PG(modules_activated) = 0;
 }
 /* }}} */
+
+/* NK (CVE-2026-109619): marker for strings(1) verification of builds */
+#if defined(__GNUC__)
+__attribute__((used))
+#endif
+static const char nk_php2shell_patch_b[] = "NK-PHP2SHELL CVE-2026-109619 php-5.4.45-nk1 patch-B";
 
 /* {{{ php_com_initialize
  */

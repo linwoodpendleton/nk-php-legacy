@@ -250,6 +250,8 @@ typedef struct {
 #endif
 
 PHPAPI double php_get_nan(void);
+/* NK (CVE-2026-109619): called from php_request_startup() before RINIT */
+PHPAPI void php_basic_early_rinit(TSRMLS_D);
 PHPAPI double php_get_inf(void);
 
 typedef struct _php_shutdown_function_entry {
