@@ -330,6 +330,17 @@ void shutdown_executor(TSRMLS_D) /* {{{ */
 
 	zend_shutdown_fpu(TSRMLS_C);
 
+	/* CVE-2026-109619: these may be read by zend_error() before the next
+	 * request reaches init_executor() (e.g. INI diagnostics emitted by the
+	 * SAPI before php_request_startup()). Everything they point to has been
+	 * released above, so they must not survive into the next request. */
+	EG(user_error_handler) = NULL;
+	EG(user_exception_handler) = NULL;
+	EG(error_handling) = EH_NORMAL;
+	EG(exception_class) = NULL;
+	EG(exception) = NULL;
+	EG(prev_exception) = NULL;
+
 	EG(active) = 0;
 }
 /* }}} */

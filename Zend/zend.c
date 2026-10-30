@@ -988,6 +988,13 @@ ZEND_API void zend_deactivate(TSRMLS_D) /* {{{ */
 	zend_try {
 		zend_ini_deactivate(TSRMLS_C);
 	} zend_end_try();
+
+	/* CVE-2026-109619: a bailout from a shutdown function or destructor can
+	 * leave these pointing into op_arrays / VM stack that shutdown_executor()
+	 * has freed; zend_get_executed_filename()/lineno() would read them if an
+	 * error is raised before the next init_executor(). */
+	EG(active_op_array) = NULL;
+	EG(opline_ptr) = NULL;
 }
 /* }}} */
 

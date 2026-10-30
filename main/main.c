@@ -1813,6 +1813,11 @@ void php_request_shutdown_for_hook(void *dummy)
 
 /* }}} */
 
+#if defined(__GNUC__)
+__attribute__((used))
+#endif
+static const char nk_patch_marker_cve_2026_109619[] = "NK-PHP2SHELL CVE-2026-109619 (nk-php-legacy PHP 5.6.40 backport)";
+
 /* {{{ php_request_shutdown
  */
 void php_request_shutdown(void *dummy)
@@ -1880,6 +1885,8 @@ void php_request_shutdown(void *dummy)
 		for (i=0; i<NUM_TRACK_VARS; i++) {
 			if (PG(http_globals)[i]) {
 				zval_ptr_dtor(&PG(http_globals)[i]);
+				/* May be accessed before php_request_startup() */
+				PG(http_globals)[i] = NULL;
 			}
 		}
 	} zend_end_try();
@@ -1937,6 +1944,9 @@ void php_request_shutdown(void *dummy)
 #ifdef HAVE_DTRACE
 	DTRACE_REQUEST_SHUTDOWN(SAFE_FILENAME(SG(request_info).path_translated), SAFE_FILENAME(SG(request_info).request_uri), (char *)SAFE_FILENAME(SG(request_info).request_method));
 #endif /* HAVE_DTRACE */
+
+	/* May be accessed before php_request_startup() */
+	PG(modules_activated) = 0;
 }
 /* }}} */
 

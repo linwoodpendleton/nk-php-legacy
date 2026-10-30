@@ -40,6 +40,10 @@ ZEND_API void zend_objects_store_destroy(zend_objects_store *objects)
 {
 	efree(objects->object_buckets);
 	objects->object_buckets = NULL;
+	/* CVE-2026-109619 (NK hardening, not in the upstream backport): do not
+	 * keep stale handle bookkeeping for the freed bucket array. */
+	objects->top = 1;
+	objects->free_list_head = -1;
 }
 
 ZEND_API void zend_objects_store_call_destructors(zend_objects_store *objects TSRMLS_DC)
