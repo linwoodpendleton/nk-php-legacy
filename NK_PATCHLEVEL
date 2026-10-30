@@ -1,0 +1,21 @@
+# NodeKeeper nk-php-legacy patch level (machine-readable "key: value" lines).
+# PHP_VERSION is NOT changed: php -v / PHP_VERSION still report 8.0.30.
+# The NK patch level is identified by this file, by the string
+# nk_php_patchlevel[] compiled into the binary (main/main.c), and by the
+# NK build manifest written by the NK installer.
+nk_patch_level: php-8.0.30-nk1
+php_version: 8.0.30
+base_tag: php-8.0.30 (8213daa932be1c2ae04726233e4e56e5df63980e)
+base_tarball: php-8.0.30.tar.gz
+base_tarball_sha256: 449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c
+repository: https://github.com/linwoodpendleton/nk-php-legacy
+branch: nk/PHP-8.0
+tag: php-8.0.30-nk1
+patch.1: Avoid state corruption via bailout | CVE-2026-109618 GHSA-w8hw-w9fx-j79w | CVE-2026-109619 GHSA-6wmf-4rv5-p3rp | upstream php/php-src 82f8f31b16a035c1b67cc253e79f7cc288f4cc20 (branch PHP-8.0-CVE-2026-109618-109619), applied unchanged
+patch.2: NK patch-level marker (this file, nk_php_patchlevel[] in main/main.c), no behaviour change
+behaviour_change: memory_limit exceeded / out of memory / allocation size overflow -> message on stderr and _exit(1) of the worker process; shutdown functions, destructors, session write and output flush do not run
+behaviour_change: session.upload_progress no longer has any effect (INI accepted, feature disabled)
+behaviour_change: multipart/form-data parts keep only Content-Disposition and Content-Type headers (duplicates ignored)
+# (max_multipart_body_parts already exists in 8.0.30)
+# EOL warning: PHP 8.0 is end of life. Only the CVEs listed above are fixed;
+# other known vulnerabilities of this branch are NOT fixed.
