@@ -130,6 +130,9 @@ void php_mb_gpc_stack_variable(char *param, char *value, char ***pval_list, int 
 /* The longest anonymous name */
 #define MAX_SIZE_ANONNAME 33
 
+/* default of max_multipart_body_parts = this + max_file_uploads (see rfc1867_post_handler) */
+#define NK_DEFAULT_MAX_INPUT_VARS 1000
+
 /* Errors */
 #define UPLOAD_ERROR_OK   0  /* File upload succesful */
 #define UPLOAD_ERROR_A    1  /* Uploaded file exceeded upload_max_filesize */
@@ -459,12 +462,21 @@ static int find_boundary(multipart_buffer *self, char *boundary TSRMLS_DC)
 	return 0;
 }
 
+static int php_mime_should_save_hdr(const char *name)
+{
+	return !strcasecmp(name, "Content-Disposition")
+		|| !strcasecmp(name, "Content-Type");
+}
+
+static char *php_mime_get_hdr_value(zend_llist header, char *key);
+
 /* parse headers */
 static int multipart_buffer_headers(multipart_buffer *self, zend_llist *header TSRMLS_DC)
 {
 	char *line;
 	mime_header_entry prev_entry, entry;
 	int prev_len, cur_len;
+	int prev_saved = 0;
 
 	/* didn't find boundary, abort */
 	if (!find_boundary(self, self->boundary TSRMLS_CC)) {
@@ -486,12 +498,20 @@ static int multipart_buffer_headers(multipart_buffer *self, zend_llist *header T
 
 		if (value) {
 			*value = 0;
-			do { value++; } while(isspace(*value));
+
+			/* Keep only headers we use, and ignore duplicates */
+			if (!php_mime_should_save_hdr(key)
+					|| php_mime_get_hdr_value(*header, key)) {
+				prev_saved = 0;
+				continue;
+			}
+
+			do { value++; } while(isspace((unsigned char)*value));
 
 			entry.value = estrdup(value);
 			entry.key = estrdup(key);
 
-		} else if (zend_llist_count(header)) { /* If no ':' on the line, add to previous line */
+		} else if (prev_saved && zend_llist_count(header)) { /* If no ':' on the line, add to previous line */
 
 			prev_len = strlen(prev_entry.value);
 			cur_len = strlen(line);
@@ -510,6 +530,7 @@ static int multipart_buffer_headers(multipart_buffer *self, zend_llist *header T
 
 		zend_llist_add_element(header, &entry);
 		prev_entry = entry;
+		prev_saved = 1;
 	}
 
 	return 1;
@@ -780,11 +801,20 @@ SAPI_API SAPI_POST_HANDLER_FUNC(rfc1867_post_handler) /* {{{ */
 	void *event_extra_data = NULL;
 	int llen = 0;
 	int upload_cnt = INI_INT("max_file_uploads");
+	int body_parts_cnt = INI_INT("max_multipart_body_parts");
+	int body_parts_limit;
 
 	if (SG(post_max_size) > 0 && SG(request_info).content_length > SG(post_max_size)) {
 		sapi_module.sapi_error(E_WARNING, "POST Content-Length of %ld bytes exceeds the limit of %ld bytes", SG(request_info).content_length, SG(post_max_size));
 		return;
 	}
+
+	if (body_parts_cnt < 0) {
+		/* upstream default is max_input_vars + max_file_uploads; 5.2 has no
+		 * max_input_vars, use its later default (1000) */
+		body_parts_cnt = NK_DEFAULT_MAX_INPUT_VARS + upload_cnt;
+	}
+	body_parts_limit = body_parts_cnt;
 
 	/* Get the boundary */
 	boundary = strstr(content_type_dup, "boundary");
@@ -875,6 +905,11 @@ SAPI_API SAPI_POST_HANDLER_FUNC(rfc1867_post_handler) /* {{{ */
 		if ((cd = php_mime_get_hdr_value(header, "Content-Disposition"))) {
 			char *pair = NULL;
 			int end = 0;
+
+			if (--body_parts_cnt < 0) {
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Multipart body parts limit exceeded %d. To increase the limit change max_multipart_body_parts in php.ini.", body_parts_limit);
+				goto fileupload_done;
+			}
 
 			while (isspace(*cd)) {
 				++cd;
