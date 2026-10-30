@@ -91,7 +91,7 @@ PHPAPI int (*php_register_internal_extensions_func)(void) = php_register_interna
  * level of this build (e.g. with `strings`); it does not change PHP_VERSION or
  * any behaviour. See NK_PATCHLEVEL in the source root. */
 PHPAPI extern const char nk_php_patchlevel[];
-PHPAPI const char nk_php_patchlevel[] = "NK-PHP-PATCHLEVEL php-8.0.30-nk1 CVE-2026-109618 CVE-2026-109619 upstream 82f8f31b16";
+PHPAPI const char nk_php_patchlevel[] = "NK-PHP-PATCHLEVEL php-8.0.30-nk2 CVE-2026-109618 CVE-2026-109619 upstream 82f8f31b16 mainline 3584a98bda";
 
 #ifndef ZTS
 php_core_globals core_globals;
