@@ -27,6 +27,10 @@
 #include "../TSRM/TSRM.h"
 #include "zend.h"
 
+#ifdef HAVE_UNISTD_H
+# include <unistd.h> /* _exit() */
+#endif
+
 typedef struct _zend_leak_info {
 	void *addr;
 	size_t size;
@@ -51,6 +55,14 @@ ZEND_API void *_safe_realloc(void *ptr, size_t nmemb, size_t size, size_t offset
 ZEND_API char *_estrdup(const char *s ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC) ZEND_ATTRIBUTE_MALLOC;
 ZEND_API char *_estrndup(const char *s, unsigned int length ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC) ZEND_ATTRIBUTE_MALLOC;
 ZEND_API size_t _zend_mem_block_size(void *ptr TSRMLS_DC ZEND_FILE_LINE_DC ZEND_FILE_LINE_ORIG_DC);
+
+/* NK backport of CVE-2026-109618: print a fatal error to stderr and _exit(1).
+ * Used for allocation failures instead of zend_error(E_ERROR) + bailout. */
+#if defined(__GNUC__) && __GNUC__ >= 3
+ZEND_API void zend_mm_safe_error_ex(const char *format, ...) __attribute__ ((noreturn));
+#else
+ZEND_API void zend_mm_safe_error_ex(const char *format, ...);
+#endif
 
 /* Standard wrapper macros */
 #define emalloc(size)						_emalloc((size) ZEND_FILE_LINE_CC ZEND_FILE_LINE_EMPTY_CC)
@@ -83,7 +95,7 @@ inline static void * __zend_malloc(size_t len)
 		return tmp;
 	}
 	fprintf(stderr, "Out of memory\n");
-	exit(1);
+	_exit(1);
 }
 
 inline static void * __zend_calloc(size_t nmemb, size_t len)
@@ -100,7 +112,7 @@ inline static void * __zend_realloc(void *p, size_t len)
 		return p;
 	}
 	fprintf(stderr, "Out of memory\n");
-	exit(1);
+	_exit(1);
 }
 
 

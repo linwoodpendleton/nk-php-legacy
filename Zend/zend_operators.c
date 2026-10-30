@@ -1233,7 +1233,7 @@ ZEND_API int concat_function(zval *result, zval *op1, zval *op2 TSRMLS_DC)
 		if (Z_STRLEN_P(result) < 0 || (int) (Z_STRLEN_P(op1) + Z_STRLEN_P(op2)) < 0) {
 			efree(Z_STRVAL_P(result));
 			ZVAL_EMPTY_STRING(result);
-			zend_error(E_ERROR, "String size overflow");
+			zend_mm_safe_error_ex("String size overflow");
 		}
 		
 		result->value.str.val = erealloc(result->value.str.val, res_len+1);
