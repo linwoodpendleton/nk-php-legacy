@@ -2850,7 +2850,11 @@ static int php_session_rfc1867_callback(unsigned int event, void *event_data, vo
 	if (php_session_rfc1867_orig_callback) {
 		retval = php_session_rfc1867_orig_callback(event, event_data, extra);
 	}
-	if (!PS(rfc1867_enabled)) {
+	/* NK backport of CVE-2026-109619 (as upstream 712e60f9ed): upload
+	 * progress runs from php_hash_environment(), before the session and
+	 * standard modules' RINIT, and consumes state left by the previous
+	 * request. It is disabled unconditionally. */
+	if (!PS(rfc1867_enabled) || 1) {
 		return retval;
 	}
 

@@ -380,6 +380,11 @@ void shutdown_executor(void) /* {{{ */
 		}
 	} zend_end_try();
 
+	/* May be used by zend_error() / php_error_cb() before the next
+	 * init_executor() (per-request INI applied before request startup). */
+	EG(error_handling) = EH_NORMAL;
+	EG(exception) = NULL;
+
 	zend_try {
 #if 0&&ZEND_DEBUG
 	signal(SIGSEGV, original_sigsegv_handler);
@@ -396,6 +401,14 @@ void shutdown_executor(void) /* {{{ */
 			FREE_HASHTABLE(EG(in_autoload));
 		}
 	} zend_end_try();
+
+	/* The bucket array is request memory: never leave a dangling pointer or a
+	 * stale index behind, even if the block above was left via bailout before
+	 * zend_objects_store_destroy(). An object created before the next
+	 * init_executor() then faults at a fixed near-NULL address. */
+	EG(objects_store).object_buckets = NULL;
+	EG(objects_store).top = 1;
+	EG(objects_store).free_list_head = -1;
 
 	zend_shutdown_fpu();
 
