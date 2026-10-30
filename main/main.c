@@ -94,6 +94,16 @@
 
 #include "ext/standard/html_tables.h"
 
+/* NodeKeeper patch marker. PHP_VERSION is intentionally unchanged; the NK
+ * release (php-7.0.33-nk<N>) and its patch list identify the fixed build.
+ * Kept in the binary so that `strings php | grep NK-PHP-PATCH` can verify
+ * which source was compiled. See https://github.com/linwoodpendleton/nk-php-legacy */
+#if defined(__GNUC__)
+__attribute__((used))
+#endif
+static const char nk_php_patch_marker[] =
+	"NK-PHP-PATCH php-7.0.33-nk1 CVE-2026-109618 CVE-2026-109619 multipart-hardening";
+
 #if HAVE_MMAP || defined(PHP_WIN32)
 # if HAVE_UNISTD_H
 #  include <unistd.h>
