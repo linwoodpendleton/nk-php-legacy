@@ -263,7 +263,21 @@ void shutdown_executor(void) /* {{{ */
 		zend_close_rsrc_list(&EG(regular_list));
 	} zend_end_try();
 
+	if (fast_shutdown) {
+		/* may be used by zend_error() before init_executor()
+		 * (NK backport of CVE-2026-109619, after php-src 712e60f9ed) */
+		ZVAL_UNDEF(&EG(user_error_handler));
+		ZVAL_UNDEF(&EG(user_exception_handler));
+		memset(&EG(user_error_handlers_error_reporting), 0, sizeof(EG(user_error_handlers_error_reporting)));
+		memset(&EG(user_error_handlers), 0, sizeof(EG(user_error_handlers)));
+		memset(&EG(user_exception_handlers), 0, sizeof(EG(user_exception_handlers)));
+	}
+
 	zend_objects_store_free_object_storage(&EG(objects_store), fast_shutdown);
+
+	/* may be used by zend_error() before init_executor() */
+	EG(error_handling) = EH_NORMAL;
+	EG(exception) = NULL;
 
 	/* All resources and objects are destroyed. */
 	/* No PHP callback functions may be called after this point. */
@@ -299,6 +313,15 @@ void shutdown_executor(void) /* {{{ */
 		} ZEND_HASH_FOREACH_END_DEL();
 
 		zend_cleanup_internal_classes();
+
+		/* The bucket array is released together with the request heap; do not
+		 * leave a dangling pointer (and stale indexes) for code running before
+		 * the next init_executor(). free_list_head = -1 is an NK addition (not
+		 * in upstream 712e60f9ed): it keeps any stray pre-init object creation
+		 * off the stale free list. */
+		EG(objects_store).object_buckets = NULL;
+		EG(objects_store).top = 1;
+		EG(objects_store).free_list_head = -1;
 	} else {
 		zend_hash_graceful_reverse_destroy(&EG(symbol_table));
 
@@ -375,6 +398,12 @@ void shutdown_executor(void) /* {{{ */
 		zend_stack_destroy(&EG(user_error_handlers));
 		zend_stack_destroy(&EG(user_exception_handlers));
 		zend_objects_store_destroy(&EG(objects_store));
+		/* NK addition (cross-check X5, not in the upstream backport):
+		 * destroy() only NULLs the bucket pointer; also drop the stale top /
+		 * free list so an object created before init_executor cannot index
+		 * with a handle of the previous request. */
+		EG(objects_store).top = 1;
+		EG(objects_store).free_list_head = -1;
 		if (EG(in_autoload)) {
 			zend_hash_destroy(EG(in_autoload));
 			FREE_HASHTABLE(EG(in_autoload));
