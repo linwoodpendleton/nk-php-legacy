@@ -267,6 +267,10 @@ void shutdown_executor(void) /* {{{ */
 
 	zend_objects_store_free_object_storage(&EG(objects_store), fast_shutdown);
 
+	/* may be used by zend_error_cb before init_executor */
+	EG(error_handling) = EH_NORMAL;
+	EG(exception) = NULL;
+
 	/* All resources and objects are destroyed. */
 	/* No PHP callback functions may be called after this point. */
 	EG(active) = 0;
@@ -285,6 +289,23 @@ void shutdown_executor(void) /* {{{ */
 		zend_hash_discard(EG(function_table), EG(persistent_functions_count));
 		zend_hash_discard(EG(class_table), EG(persistent_classes_count));
 		zend_cleanup_internal_classes();
+
+		/* The request heap is released as a whole after this point; do not
+		 * leave pointers into it in the executor globals, they may be used
+		 * by zend_error_cb before the next init_executor (php.ini/.htaccess
+		 * values applied before request startup). */
+		ZVAL_UNDEF(&EG(user_error_handler));
+		ZVAL_UNDEF(&EG(user_exception_handler));
+		memset(&EG(user_error_handlers_error_reporting), 0, sizeof(EG(user_error_handlers_error_reporting)));
+		memset(&EG(user_error_handlers), 0, sizeof(EG(user_error_handlers)));
+		memset(&EG(user_exception_handlers), 0, sizeof(EG(user_exception_handlers)));
+		EG(objects_store).object_buckets = NULL;
+		EG(objects_store).top = 1;
+		/* NK addition (not in the upstream backport): also drop the stale
+		 * free list, so that an object created before init_executor can only
+		 * fault deterministically near NULL instead of indexing with a stale
+		 * handle. */
+		EG(objects_store).free_list_head = -1;
 	} else {
 		zend_hash_graceful_reverse_destroy(&EG(symbol_table));
 
@@ -361,6 +382,12 @@ void shutdown_executor(void) /* {{{ */
 		zend_stack_destroy(&EG(user_error_handlers));
 		zend_stack_destroy(&EG(user_exception_handlers));
 		zend_objects_store_destroy(&EG(objects_store));
+		/* NK addition (cross-check X5, not in the upstream backport):
+		 * destroy() only NULLs the bucket pointer; also drop the stale top /
+		 * free list so an object created before init_executor cannot index
+		 * with a handle of the previous request. */
+		EG(objects_store).top = 1;
+		EG(objects_store).free_list_head = -1;
 		if (EG(in_autoload)) {
 			zend_hash_destroy(EG(in_autoload));
 			FREE_HASHTABLE(EG(in_autoload));

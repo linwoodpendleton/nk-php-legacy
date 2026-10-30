@@ -3893,6 +3893,25 @@ PHP_RSHUTDOWN_FUNCTION(basic) /* {{{ */
 }
 /* }}} */
 
+/* NK backport of CVE-2026-109619 (from upstream mainline 3584a98bda,
+ * php_basic_early_rinit()): called from php_request_startup() right after
+ * zend_activate(), before any request data is processed. The standard module
+ * is activated after ext/session (standard_deps), so session RINIT
+ * (session.auto_start, which is PHP_INI_PERDIR) and anything that runs from
+ * php_hash_environment() would otherwise (un)serialize / rewrite URLs with
+ * the state the previous request left behind if it was interrupted by a
+ * bailout. */
+PHPAPI void php_basic_early_rinit(void)
+{
+	BG(serialize_lock) = 0;
+	memset(&BG(serialize), 0, sizeof(BG(serialize)));
+	memset(&BG(unserialize), 0, sizeof(BG(unserialize)));
+	/* Same fields as php_url_scanner_ex_activate() zeroes ("Everything above
+	 * is zeroed in RINIT"); the tags table is process-owned and kept. */
+	memset(&BG(url_adapt_session_ex), 0, XtOffsetOf(url_adapt_state_ex_t, tags));
+	memset(&BG(url_adapt_output_ex), 0, XtOffsetOf(url_adapt_state_ex_t, tags));
+}
+
 PHP_MINFO_FUNCTION(basic) /* {{{ */
 {
 	php_info_print_table_start();

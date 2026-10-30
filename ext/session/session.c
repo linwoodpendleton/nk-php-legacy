@@ -3160,7 +3160,11 @@ static int php_session_rfc1867_callback(unsigned int event, void *event_data, vo
 	if (php_session_rfc1867_orig_callback) {
 		retval = php_session_rfc1867_orig_callback(event, event_data, extra);
 	}
-	if (!PS(rfc1867_enabled)) {
+	/* CVE-2026-109619: session upload progress runs before RINIT of the
+	 * session and standard modules and would decode/unserialize session data
+	 * with state left over from the previous request in this process.
+	 * Disabled unconditionally, as in the upstream 7.4-8.1 backports. */
+	if (!PS(rfc1867_enabled) || 1) {
 		return retval;
 	}
 
