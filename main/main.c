@@ -1848,6 +1848,7 @@ int php_request_startup(void)
 		PG(in_user_include) = 0;
 
 		zend_activate();
+		php_basic_early_rinit();
 		sapi_activate();
 
 #ifdef ZEND_SIGNALS
