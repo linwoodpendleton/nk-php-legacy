@@ -1,0 +1,21 @@
+# NodeKeeper nk-php-legacy patch level (machine-readable "key: value" lines).
+# PHP_VERSION is NOT changed: php -v / PHP_VERSION still report 7.4.33.
+# The NK patch level is identified by this file, by the string
+# nk_php_patchlevel[] compiled into the binary (main/main.c), and by the
+# NK build manifest written by the NK installer.
+nk_patch_level: php-7.4.33-nk1
+php_version: 7.4.33
+base_tag: php-7.4.33 (dca8d5565b947270a29f232bc54efd9df3b92b94)
+base_tarball: php-7.4.33.tar.gz
+base_tarball_sha256: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
+repository: https://github.com/linwoodpendleton/nk-php-legacy
+branch: nk/PHP-7.4
+tag: php-7.4.33-nk1
+patch.1: Avoid state corruption via bailout | CVE-2026-109618 GHSA-w8hw-w9fx-j79w | CVE-2026-109619 GHSA-6wmf-4rv5-p3rp | upstream php/php-src 712e60f9edfd03f0960fc4fc3c2c375f42b90aa2 (branch PHP-7.4-CVE-2026-109618-109619), applied unchanged
+patch.2: NK patch-level marker (this file, nk_php_patchlevel[] in main/main.c), no behaviour change
+behaviour_change: memory_limit exceeded / out of memory / allocation size overflow -> message on stderr and _exit(1) of the worker process; shutdown functions, destructors, session write and output flush do not run
+behaviour_change: session.upload_progress no longer has any effect (INI accepted, feature disabled)
+behaviour_change: multipart/form-data parts keep only Content-Disposition and Content-Type headers (duplicates ignored)
+behaviour_change: new INI max_multipart_body_parts (PHP_INI_SYSTEM|PERDIR, default -1 = max_input_vars + max_file_uploads)
+# EOL warning: PHP 7.4 is end of life. Only the CVEs listed above are fixed;
+# other known vulnerabilities of this branch are NOT fixed.
