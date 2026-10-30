@@ -356,10 +356,9 @@ ZEND_COLD void zend_debug_alloc_output(char *format, ...)
 static ZEND_COLD ZEND_NORETURN void zend_mm_panic(const char *message)
 {
 	fprintf(stderr, "%s\n", message);
-/* See http://support.microsoft.com/kb/190351 */
-#ifdef ZEND_WIN32
+	/* _exit() discards stdio buffers and stderr is not unbuffered in every
+	 * SAPI host (e.g. an Apache child): flush so the message is logged. */
 	fflush(stderr);
-#endif
 #if ZEND_DEBUG && defined(HAVE_KILL) && defined(HAVE_GETPID)
 	kill(getpid(), SIGSEGV);
 #endif
@@ -396,10 +395,10 @@ ZEND_API ZEND_COLD ZEND_NORETURN void zend_mm_safe_error_ex(const char *format, 
 			script_filename ? ZSTR_VAL(script_filename) : "Unknown",
 			script_lineno);
 
-	/* See http://support.microsoft.com/kb/190351 */
-# ifdef ZEND_WIN32
+	/* _exit() discards stdio buffers and stderr is not unbuffered in every
+	 * SAPI host (e.g. an Apache child, where the message was lost):
+	 * always flush (upstream flushes on Windows only). */
 	fflush(stderr);
-# endif
 
 	_exit(1);
 }
@@ -2865,6 +2864,7 @@ ZEND_API zend_mm_heap *zend_mm_startup_ex(const zend_mm_handlers *handlers, void
 static ZEND_COLD ZEND_NORETURN void zend_out_of_memory(void)
 {
 	fprintf(stderr, "Out of memory\n");
+	fflush(stderr);
 	_exit(1);
 }
 
