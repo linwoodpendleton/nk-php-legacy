@@ -84,10 +84,8 @@ static void zend_mm_panic(const char *message) __attribute__ ((noreturn));
 static void zend_mm_panic(const char *message)
 {
 	fprintf(stderr, "%s\n", message);
-/* See http://support.microsoft.com/kb/190351 */
-#ifdef PHP_WIN32
+	/* _exit() discards stdio buffers: always flush (not only on Windows) */
 	fflush(stderr);
-#endif
 #if ZEND_DEBUG && defined(HAVE_KILL) && defined(HAVE_GETPID)
 	kill(getpid(), SIGSEGV);
 #endif
@@ -1774,10 +1772,9 @@ ZEND_API void zend_mm_safe_error_ex(const char *format, ...)
 
 	fprintf(stderr, "\nFatal error: %s in %s on line %d\n",
 		buf, error_filename ? error_filename : "Unknown", error_lineno);
-/* See http://support.microsoft.com/kb/190351 */
-#ifdef PHP_WIN32
+	/* _exit() discards stdio buffers and stderr is not unbuffered in every
+	 * SAPI host: always flush (upstream flushes on Windows only) */
 	fflush(stderr);
-#endif
 
 	_exit(1);
 }

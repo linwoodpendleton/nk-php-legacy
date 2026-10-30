@@ -65,7 +65,8 @@
 		if (newlen >= (d)->a) {										\
 			(d)->a = newlen + SMART_STR_PREALLOC;					\
 	        if (UNEXPECTED((d)->a >= INT_MAX)) {					\
-                zend_error(E_ERROR, "String size overflow");		\
+                /* CVE-2026-109618: (d)->a is already raised here */	\
+                zend_mm_safe_error_ex("String size overflow");		\
             }														\
 			SMART_STR_DO_REALLOC(d, what);							\
 		}															\
