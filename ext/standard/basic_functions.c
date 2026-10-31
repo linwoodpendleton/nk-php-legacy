@@ -3829,6 +3829,27 @@ PHP_RSHUTDOWN_FUNCTION(basic) /* {{{ */
 }
 /* }}} */
 
+/* {{{ php_basic_early_rinit
+ * NK nk-php-legacy (CVE-2026-109619 follow-up; same reset as upstream mainline
+ * 3584a98bda php_basic_early_rinit(), not part of the official PHP-7.4 backport
+ * 712e60f9ed): called from php_request_startup() right after zend_activate(),
+ * before any request data is processed and before any module RINIT. ext/standard
+ * is activated after ext/session (standard_deps lists session as an optional
+ * dependency), so session RINIT with session.auto_start=1 (PHP_INI_PERDIR:
+ * .htaccess, FastCGI PHP_VALUE, pool php_value, .user.ini) would otherwise decode
+ * the session with the BG(unserialize) context that a fatal error inside
+ * unserialize() in the previous request of the same worker left pointing into
+ * that request's freed heap. The URL-rewriter reset is the same prefix
+ * php_url_scanner_ex_activate() zeroes; the process-owned tags table is kept. */
+PHPAPI void php_basic_early_rinit(void)
+{
+	BG(serialize_lock) = 0;
+	memset(&BG(serialize), 0, sizeof(BG(serialize)));
+	memset(&BG(unserialize), 0, sizeof(BG(unserialize)));
+	memset(&BG(url_adapt_state_ex), 0, XtOffsetOf(url_adapt_state_ex_t, tags));
+}
+/* }}} */
+
 PHP_MINFO_FUNCTION(basic) /* {{{ */
 {
 	php_info_print_table_start();

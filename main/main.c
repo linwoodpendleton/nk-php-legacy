@@ -1572,6 +1572,8 @@ static int php_start_sapi(void)
 			PG(connection_status) = PHP_CONNECTION_NORMAL;
 
 			zend_activate();
+			/* CVE-2026-109619: see php_request_startup() */
+			php_basic_early_rinit();
 			zend_set_timeout(EG(timeout_seconds), 1);
 			zend_activate_modules();
 			PG(modules_activated)=1;
@@ -1621,6 +1623,8 @@ int php_request_startup(void)
 		PG(in_user_include) = 0;
 
 		zend_activate();
+		/* CVE-2026-109619: reset BG() state that is used before basic's RINIT */
+		php_basic_early_rinit();
 		sapi_activate();
 
 #ifdef ZEND_SIGNALS
