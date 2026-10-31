@@ -102,7 +102,7 @@
 __attribute__((used))
 #endif
 static const char nk_php_patch_marker[] =
-	"NK-PHP-PATCH php-7.0.33-nk1 CVE-2026-109618 CVE-2026-109619 multipart-hardening";
+	"NK-PHP-PATCH php-7.0.33-nk2 CVE-2026-109618 CVE-2026-109619 multipart-hardening early-rinit";
 
 #if HAVE_MMAP || defined(PHP_WIN32)
 # if HAVE_UNISTD_H
