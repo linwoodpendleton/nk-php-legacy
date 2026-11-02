@@ -120,7 +120,7 @@ PHPAPI int (*php_register_internal_extensions_func)(void) = php_register_interna
 __attribute__((used))
 #endif
 static const char nk_php_patchlevel[] =
-	"NK-PHP-PATCHLEVEL php-7.2.34-nk1 CVE-2026-109618 CVE-2026-109619";
+	"NK-PHP-PATCHLEVEL php-7.2.34-nk2 CVE-2026-109618 CVE-2026-109619 user-stream-reset";
 
 #ifndef ZTS
 php_core_globals core_globals;
