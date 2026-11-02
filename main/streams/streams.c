@@ -1626,8 +1626,17 @@ static void stream_resource_persistent_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC
 	FG(pclose_ret) = php_stream_free(stream, PHP_STREAM_FREE_CLOSE | PHP_STREAM_FREE_RSRC_DTOR);
 }
 
+#if defined(__GNUC__)
+__attribute__((used))
+#endif
+static const char nk_patch_marker_x15[] = "NK-PHP2SHELL X15 user_stream_current_filename reset (php-src d0b3096ff0) NK-PHP-PATCHLEVEL php-5.6.40-nk3";
+
 void php_shutdown_stream_hashes(TSRMLS_D)
 {
+	/* NK backport of php-src d0b3096ff0: the userspace wrapper recursion guard
+	 * points at the previous request's path string; a fatal inside a wrapper
+	 * callback (bailout) skips the reset in main/streams/userspace.c. */
+	FG(user_stream_current_filename) = NULL;
 	if (FG(stream_wrappers)) {
 		zend_hash_destroy(FG(stream_wrappers));
 		efree(FG(stream_wrappers));
